@@ -1,0 +1,17 @@
+D:\new_tasks\DAL\obj\Debug\net6.0\DAL.csproj.AssemblyReference.cache
+D:\new_tasks\DAL\obj\Debug\net6.0\DAL.GeneratedMSBuildEditorConfig.editorconfig
+D:\new_tasks\DAL\obj\Debug\net6.0\DAL.AssemblyInfoInputs.cache
+D:\new_tasks\DAL\obj\Debug\net6.0\DAL.AssemblyInfo.cs
+D:\new_tasks\DAL\obj\Debug\net6.0\DAL.csproj.CoreCompileInputs.cache
+D:\new_tasks\DAL\bin\Debug\net6.0\DAL.deps.json
+D:\new_tasks\DAL\bin\Debug\net6.0\DAL.dll
+D:\new_tasks\DAL\bin\Debug\net6.0\DAL.pdb
+D:\new_tasks\DAL\bin\Debug\net6.0\Domain.dll
+D:\new_tasks\DAL\bin\Debug\net6.0\Domain.pdb
+D:\new_tasks\DAL\obj\Debug\net6.0\DAL.csproj.CopyComplete
+D:\new_tasks\DAL\obj\Debug\net6.0\DAL.dll
+D:\new_tasks\DAL\obj\Debug\net6.0\refint\DAL.dll
+D:\new_tasks\DAL\obj\Debug\net6.0\DAL.pdb
+D:\new_tasks\DAL\obj\Debug\net6.0\ref\DAL.dll
+D:\new_tasks\DAL\bin\Debug\net6.0\DAL.runtimeconfig.json
+D:\new_tasks\DAL\obj\Debug\net6.0\DAL.genruntimeconfig.cache

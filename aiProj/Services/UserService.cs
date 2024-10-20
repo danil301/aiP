@@ -51,8 +51,7 @@ namespace aiProj.DAL
 
         public async Task<bool> ConfirmCode()
         {
-           
-       
+            
             await _userRepository.Create(_userBuff);
             return true;
          
@@ -64,7 +63,7 @@ namespace aiProj.DAL
         {
             try
             {
-                var user = _userRepository.Select().Result.FirstOrDefault(x => x.Login == model.Login || x.Email == model.Login);
+                var user = _userRepository.Select().Result.FirstOrDefault(x => x.Login == model.Username || x.Email == model.Username);
 
                 if (user == null)
                 {

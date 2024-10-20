@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Domain;
+using Microsoft.EntityFrameworkCore;
 
 namespace aiProj.DAL
 {
@@ -11,5 +12,7 @@ namespace aiProj.DAL
         }
 
         public DbSet<User> Users { get; set; }
+
+        public DbSet<Project> Projects { get; set; }
     }
 }

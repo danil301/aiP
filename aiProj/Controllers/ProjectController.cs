@@ -1,7 +1,7 @@
-﻿using Domain;
+﻿using aiProj.Services;
+using Domain;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
-using System.Diagnostics;
 
 namespace aiProj.Controllers
 {
@@ -10,9 +10,11 @@ namespace aiProj.Controllers
     public class ProjectController : Controller
     {
         private readonly string _storagePath = Path.Combine(Directory.GetCurrentDirectory(), "UploadedDatasets");
+        private ProjectService _projectService;
 
-        public ProjectController()
+        public ProjectController(ProjectService projectService)
         {
+            _projectService = projectService;
             // Создаем директорию для загрузки файлов, если её нет
             if (!Directory.Exists(_storagePath))
             {
@@ -20,118 +22,78 @@ namespace aiProj.Controllers
             }
         }
 
-        // Маршрут для загрузки файла и запуска обучения модели
-        [HttpPost("train")]
-        public async Task<IActionResult> TrainModel([FromForm] ModelRequestWithFile modelRequestWithFile)
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> CreateProject([FromForm] ProjectViewModel project)
         {
-            // Сохраняем файл на сервере и получаем путь к файлу
-            var datasetPath = await SaveDatasetFile(modelRequestWithFile.DatasetFile);
-
-            if (string.IsNullOrEmpty(datasetPath))
+            if (project == null)
             {
-                return BadRequest("Failed to save dataset file.");
+                return BadRequest("Данные проекта не были переданы.");
             }
 
-            // Создаем объект ModelRequest и присваиваем путь к файлу
-            var modelRequest = new ModelRequest
+            // Проверяем, есть ли файл
+            if (project.File == null || project.File.Length == 0)
             {
-                ModelType = modelRequestWithFile.ModelType,
-                Dataset = datasetPath,
-                ModelParams = modelRequestWithFile.ModelParams,
-                TargetColumn = modelRequestWithFile.TargetColumn // добавляем целевую колонку
+                return BadRequest("Файл не был загружен.");
+            }
+
+            // Генерируем уникальное имя для файла
+            string uniqueFileName = Guid.NewGuid().ToString() + "_" + project.File.FileName;
+            string filePath = Path.Combine(_storagePath, uniqueFileName);
+
+            // Сохраняем файл на диск
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                await project.File.CopyToAsync(fileStream);
+            }
+
+            // Создаем объект Project с информацией из ViewModel
+            var proj = new Project()
+            {
+                Name = project.Name,
+                UserLogin = User.Identity.Name,
+                Type = project.Type,
+                TargetColumn = project.TargetColumn,
+                FilePath = filePath, // Сохраняем путь к файлу
+                Params = "sdwfe" // Сериализуем Params в JSON-строку
             };
 
-            // Сериализуем параметры для Python скрипта
-            string jsonParams = SerializeModelRequest(modelRequest);
+            // Сохраняем проект через сервис
+            await _projectService.CreateProject(proj);
 
-            // Вызываем Python скрипт и получаем результат
-            var pythonResult = await RunPythonScriptAsync(jsonParams);
-
-            if (pythonResult == null)
-            {
-                return StatusCode(500, "Error occurred during model training.");
-            }
-
-            // Возвращаем результат на фронтенд
-            return Ok(pythonResult);
+            return Ok(new { Message = "Проект успешно создан", FilePath = filePath });
         }
 
-        // Метод для сохранения файла на сервере
-        private async Task<string> SaveDatasetFile(IFormFile datasetFile)
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetProjects()
         {
-            try
-            {
-                if (datasetFile == null || datasetFile.Length == 0)
-                {
-                    return null;
-                }
-
-                var filePath = Path.Combine(_storagePath, Guid.NewGuid().ToString() + Path.GetExtension(datasetFile.FileName));
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await datasetFile.CopyToAsync(stream);
-                }
-
-                return filePath;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error saving file: {ex.Message}");
-                return null;
-            }
+            var userName = User.Identity.Name;
+            var result = await _projectService.GetAllUserProjects(userName);
+           
+            return Ok(result);
         }
 
-        // Метод для сериализации входных данных (ModelRequest -> JSON)
-        private string SerializeModelRequest(ModelRequest modelRequest)
+        [HttpGet("{name}")]
+        [Authorize]
+        public async Task<IActionResult> GetProject(string name)
         {
-            return JsonConvert.SerializeObject(new
-            {
-                model_type = modelRequest.ModelType,
-                dataset = modelRequest.Dataset,  // Путь к файлу на сервере
-                model_params = modelRequest.ModelParams, // Словарь параметров
-                target_column = modelRequest.TargetColumn // Укажите целевую колонку, если это необходимо
-            });
+            var userName = User.Identity.Name;
+            var result = _projectService.GetAllUserProjects(userName).Result.First(x => x.Name == name);
+
+            return Ok(result);
         }
 
-        // Метод для выполнения Python скрипта и получения результата
-        // Метод для выполнения Python скрипта и получения результата
-        private async Task<dynamic> RunPythonScriptAsync(string jsonParams)
+        [Authorize]
+        [HttpDelete("{name}")]        
+        public async Task<IActionResult> DeleteProject(string name)
         {
-            string pythonPath = "python";  // Убедитесь, что Python добавлен в PATH
-            string scriptPath = "train_model.py";  // Путь к Python скрипту
-
-            ProcessStartInfo start = new ProcessStartInfo
+            if(!await _projectService.DeleteProjectByName(name))
             {
-                FileName = pythonPath,
-                Arguments = $"{scriptPath} \"{jsonParams}\"",  // Передача JSON как аргумента
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using (Process process = new Process())
-            {
-                process.StartInfo = start;
-                process.Start();
-
-                // Чтение стандартного вывода
-                string result = await process.StandardOutput.ReadToEndAsync();
-
-                // Чтение ошибок
-                string error = await process.StandardError.ReadToEndAsync();
-                if (!string.IsNullOrEmpty(error))
-                {
-                    Debug.WriteLine($"Python error: {error}");
-                    return null;
-                }
-
-                process.WaitForExit();
-
-                // Десериализуем ответ от Python скрипта
-                return JsonConvert.DeserializeObject<dynamic>(result);
+                return BadRequest();
             }
+
+            return Ok();
         }
 
     }
